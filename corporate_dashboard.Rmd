@@ -1,0 +1,217 @@
+---
+title: "Corporate Exploration"
+output: 
+  flexdashboard::flex_dashboard:
+    vertical_layout: scroll
+    logo: ohridska5.jpg
+    self_contained: no
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+```
+
+<style>                     
+  .navbar {
+    background-color:red;
+    border-color:black;
+  }
+
+.navbar-inverse .navbar-nav>.active>a, .navbar-inverse .navbar-nav>.active>a:hover, .navbar-inverse .navbar-nav>.active>a:focus {
+  color: black;
+  background-color: #feb0b0;
+}
+
+.navbar-inverse .navbar-nav > li > a:hover, .navbar-inverse .navbar-nav > li > a:focus {
+  background-color: #feb0b0
+}
+
+</style>           
+
+
+```{r}
+#Libraries
+
+library(data.table)
+library(dplyr)
+library(lubridate)
+library(DT)
+library(crosstalk)
+library(plotly)
+```
+
+
+Corporate Data {data-orientation=rows data-icon="ion-ios-home"}
+=====================================  
+
+```{r}
+#Libraries
+
+library(data.table)
+library(dplyr)
+library(lubridate)
+library(crosstalk)
+```
+
+```{r}
+#Load data
+setwd("~/directory_3/database_tables")
+
+corporate_clients <- fread("./corporate_profile.csv", drop = "V1")
+
+```
+`
+
+### Date of data extract
+
+``` {r}
+valueBox("07/06/2017", icon = "glyphicon-calendar", color="rgb(100,100,100)")
+
+```
+
+###  Number of corporate clients
+
+```{r}
+n <- nrow(corporate_clients)
+
+valueBox(n, icon = "glyphicon-user", color="#64c864")
+```
+
+###  Number of variables
+
+```{r}
+n <- nrow(corporate_clients)
+
+valueBox("42", icon = "glyphicon-list-alt", color="#0099ff")
+```
+
+Corporate Stats {data-orientation=rows data-icon="Row glyphicon-stats"}
+=====================================  
+
+The scope of clients we analyze is with the following legal structure: 
+
+-  ДООЕЛ (Limited Liability Company of One Person)
+-  ДОО (Limited Liability Company)
+-  Јавно Трговско Друштво (Corporation - Inc) 
+-  Јавно претпријатие (State Owned)
+
+Row
+-------------------------------------
+```{r}
+corporate_clients <- filter(corporate_clients, organization_structure == "ДООЕЛ" | organization_structure == "Друштво со ограничена одговорност" | organization_structure == "Јавно трговско друштво" | organization_structure == "Јавно претпријатие")
+```
+
+### Firm Size
+
+```{r}
+library(highcharter)
+
+firm_size <- as.data.frame(table(corporate_clients$firm_size))
+
+colnames(firm_size)[1] <- "col_label"
+colnames(firm_size)[2] <- "size"
+
+
+hchart(firm_size, "pie", hcaes(x = col_label, label=size,y = size)) %>%
+hc_plotOptions(pie =list(dataLabels = list(enabled = TRUE,format="{point.percentage:.2f} %"))) %>%
+  
+hc_tooltip(pointFormat = "
+Nominal value: {point.y:,.0f}<br>")
+
+```
+
+
+### Location
+
+```{r}
+location_nominal <- as.data.frame(table(corporate_clients$post_city))
+location_percent <- as.data.frame(prop.table(table(corporate_clients$post_city)))
+
+colnames(location_nominal)[1] <- "Location"
+colnames(location_nominal)[2] <- "Nominal"
+
+colnames(location_percent)[1] <- "Location"
+colnames(location_percent)[2] <- "Freq_percent"
+
+location_percent$Freq_percent <- round(location_percent$Freq_percent, digits = 2)
+location_percent$Freq_percent <- location_percent$Freq_percent * 100
+
+location <- merge(location_nominal, location_percent, by = "Location", all.x = TRUE)
+
+location_n <- arrange(location, desc(Freq_percent))
+location_n <- head(location_n, n = 10)
+location_n <- arrange(location_n, desc(Freq_percent))
+
+location_n$colorr <- "#ffb347"
+
+hchart(location_n, "bar", hcaes(x = Location, label=Location,y = Freq_percent, color=colorr)) %>%
+
+hc_tooltip(pointFormat = "
+Percent: {point.y:,.0f}<br>")
+```
+
+Row
+-------------------------------------
+
+### Seniority 
+
+```{r}
+
+corporate_profile <- corporate_clients
+
+corporate_profile$REGDATUM <- ymd(corporate_profile$REGDATUM)
+
+corporate_profile$foundation_year <- year(corporate_profile$REGDATUM)  
+
+corporate_profile <- mutate(corporate_profile, seniority_years =
+                              2017 - foundation_year)
+
+seniority <- as.data.frame(table(corporate_profile$seniority_years))
+seniority <- seniority[c(-1, -38), ]
+
+seniority$Freq <- as.numeric(seniority$Freq)
+
+seniority <- mutate(seniority, percent = Freq/sum(Freq))
+seniority <- mutate(seniority, percent = round(percent, digits = 2))
+seniority <- mutate(seniority, percent = percent * 100)
+
+colnames(seniority)[1] <- "seniority_years"
+colnames(seniority)[2] <- "nominal"
+colnames(seniority)[3] <- "percent"
+
+t <- ggplot(seniority)  +
+   geom_point(aes(as.factor(seniority_years), 
+                  nominal), 
+             size = 2, 
+             color="magenta") +
+  geom_line(aes(as.factor(seniority_years), 
+                nominal,
+                group = 1, alpha = 0.5), 
+            color = "magenta") +
+
+  xlab("") + 
+  ylab("") +
+  theme(legend.title = element_blank()) +
+  theme_minimal()
+
+ggplotly(t) 
+```
+
+Row
+-------------------------------------
+
+### 
+
+```{r}
+opis <- as.data.frame(table(corporate_clients$OPIS.x))
+
+opis
+```
+
+
+
+Products {data-orientation=rows data-icon="ion-ios-home"}
+=====================================  
+
+Transactions {data-orientation=rows data-icon="ion-ios-home"}
+=====================================  
